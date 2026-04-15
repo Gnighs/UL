@@ -418,20 +418,24 @@ print("\n[saved] exp4_nmi_real_datasets.png")
 
 # ── EXP 5: ASE comparison KNets vs KMeans across resolutions (Fig. 6) ────────
 
-section("EXP 5 — ASE: K-Nets vs K-Means across cluster counts (Fig. 6 style)")
+# ── EXP 5: ASE comparison KNets vs K-Centers (Fig. 6 style) ──────────────────
+
+section("EXP 5 — ASE: K-Nets vs K-Centers across cluster counts (Fig. 6 style)")
 
 d = load_digits()
 X_ase = StandardScaler().fit_transform(d.data)
 y_ase = d.target
 
 cluster_range = list(range(5, 51, 5))
-ase_knets, ase_kmeans, nmi_knets, nmi_kmeans = [], [], [], []
-time_knets, time_kmeans = [], []
+ase_knets, ase_kcenters = [], []
+nmi_knets, nmi_kcenters = [], []
+time_knets, time_kcenters = [], []
 
-print("Computing ASE and NMI across cluster counts on digits dataset...")
+print("Computing ASE and NMI: K-Nets vs K-Centers (single init)...")
 for nc in cluster_range:
-    print(f"  nc={nc}...")
+    print(f"  nc={nc:2d}...")
 
+    # K-Nets EOM
     t0 = time.time()
     m = KNets(k=max(5, nc), n_clusters=nc)
     m.fit(X_ase)
@@ -439,43 +443,51 @@ for nc in cluster_range:
     ase_knets.append(ase(X_ase, m.labels_, m.cluster_centers_))
     nmi_knets.append(NMI(y_ase, m.labels_))
 
+    # K-Centers (Gonzalez Algorithm)
     t0 = time.time()
-    lbls_km, ctrs_km = run_kmeans(X_ase, nc, n_init=10)
-    time_kmeans.append(time.time() - t0)
-    ase_kmeans.append(ase(X_ase, lbls_km, ctrs_km))
-    nmi_kmeans.append(NMI(y_ase, lbls_km))
+    lbls_kc, ctrs_kc = run_kcenters(X_ase, nc)
+    time_kcenters.append(time.time() - t0)
+    ase_kcenters.append(ase(X_ase, lbls_kc, ctrs_kc))
+    nmi_kcenters.append(NMI(y_ase, lbls_kc))
 
-ase_knets, ase_kmeans = np.array(ase_knets), np.array(ase_kmeans)
-pct_improvement = 100 * (ase_kmeans - ase_knets) / ase_kmeans
+# Calculations
+ase_knets, ase_kcenters = np.array(ase_knets), np.array(ase_kcenters)
+pct_improvement = 100 * (ase_kcenters - ase_knets) / ase_kcenters
 
+# Plotting
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
+# Plot 1: ASE Comparison
 axes[0].plot(cluster_range, ase_knets, 'o-', color='#1F3864', label='K-Nets EOM')
-axes[0].plot(cluster_range, ase_kmeans, 's--', color='#e6194b', label='K-Means')
+axes[0].plot(cluster_range, ase_kcenters, 's--', color='#e6194b', label='K-Centers (1 init)')
 axes[0].set_xlabel("Number of clusters")
-axes[0].set_ylabel("ASE")
+axes[0].set_ylabel("ASE (Lower is Better)")
 axes[0].set_title("ASE vs cluster count")
 axes[0].legend(); axes[0].grid(True, alpha=0.3)
 
+# Plot 2: % Improvement
 axes[1].bar(cluster_range, pct_improvement, color='#2E5299', alpha=0.8, width=3.5)
 axes[1].axhline(0, color='black', linewidth=0.8)
 axes[1].set_xlabel("Number of clusters")
-axes[1].set_ylabel("% ASE improvement of K-Nets over K-Means")
-axes[1].set_title("K-Nets ASE improvement over K-Means\n(positive = K-Nets better)")
+axes[1].set_ylabel("% ASE improvement (KNets vs KCenters)")
+axes[1].set_title("K-Nets ASE improvement\n(positive = K-Nets better)")
 axes[1].grid(True, alpha=0.3, axis='y')
 
+# Plot 3: NMI Comparison
 axes[2].plot(cluster_range, nmi_knets, 'o-', color='#1F3864', label='K-Nets EOM')
-axes[2].plot(cluster_range, nmi_kmeans, 's--', color='#e6194b', label='K-Means')
+axes[2].plot(cluster_range, nmi_kcenters, 's--', color='#e6194b', label='K-Centers')
 axes[2].set_xlabel("Number of clusters")
-axes[2].set_ylabel("NMI")
-axes[2].set_title("NMI vs cluster count (digits, 10 true classes)")
+axes[2].set_ylabel("NMI (Higher is Better)")
+axes[2].set_title("NMI vs cluster count (digits)")
 axes[2].legend(); axes[2].grid(True, alpha=0.3)
 
-fig.suptitle("EXP 5 — ASE and NMI: K-Nets vs K-Means (Fig. 6 style)", fontsize=11)
+fig.suptitle("EXP 5 — ASE and NMI: K-Nets vs K-Centers (Gonzalez Algorithm)", fontsize=11)
 plt.tight_layout()
 plt.savefig(f"{OUT}/exp5_ase_comparison.png", dpi=150, bbox_inches='tight')
 plt.close()
-print(f"\n  Mean ASE improvement of K-Nets over K-Means: {pct_improvement.mean():.1f}%")
+
+print(f"\n  Mean ASE improvement of K-Nets over K-Centers: {pct_improvement.mean():.1f}%")
+print(f"  Mean Time: KNets={np.mean(time_knets):.3f}s | KCenters={np.mean(time_kcenters):.3f}s")
 print("[saved] exp5_ase_comparison.png")
 
 
@@ -617,7 +629,6 @@ plt.tight_layout()
 plt.savefig(f"{OUT}/exp7_nonlinear_geodesic.png", dpi=150, bbox_inches='tight')
 plt.close()
 print("\n[saved] exp7_nonlinear_geodesic.png")
-
 
 # ── EXP 8: Parallel two-layer speedup (Section 3.1 timing claim) ─────────────
 

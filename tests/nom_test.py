@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 from sklearn.datasets import make_moons
-from knets import KNets
+from src.knets import KNets
 
 print('Creating synthetic dataset with make_moons...')
 X, _ = make_moons(n_samples=300, noise=0.08, random_state=42)
