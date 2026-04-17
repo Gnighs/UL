@@ -4,9 +4,7 @@ import matplotlib
 matplotlib.use('Agg')
 from matplotlib.colors import ListedColormap
 
-from sklearn.cluster import (KMeans, AffinityPropagation, DBSCAN, MeanShift)
-
-warnings.filterwarnings('ignore')
+from sklearn.cluster import (KMeans, AffinityPropagation, DBSCAN, MeanShift, estimate_bandwidth)
 
 SEED = 42
 PALETTE = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4',
@@ -15,7 +13,6 @@ PALETTE = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4',
 
 
 def ase(X, labels, centers):
-    """Average Squared Error: mean squared distance of each point to its center."""
     total = 0.0
     for c in range(len(centers)):
         members = X[labels == c]
@@ -57,10 +54,21 @@ def run_dbscan(X, eps=0.5, min_samples=5):
     return DBSCAN(eps=eps, min_samples=min_samples).fit_predict(X)
 
 
-def run_meanshift(X):
-    m = MeanShift()
+def run_meanshift(X, bandwidth=None, quantile=0.15, n_samples=500):
+    if bandwidth is None:
+        m = MeanShift()
+        m.fit(X)
+        return m.labels_
+
+    rng = np.random.default_rng(SEED)
+    sub = X[rng.choice(len(X), min(2000, len(X)), replace=False)]
+    bw = estimate_bandwidth(sub, quantile=quantile, n_samples=n_samples)
+    bw = max(bw, 5.0)
+
+    m = MeanShift(bandwidth=bw, bin_seeding=True, n_jobs=1)
     m.fit(X)
     return m.labels_
+
 
 def section(title):
     print(f"\n{'='*70}")
